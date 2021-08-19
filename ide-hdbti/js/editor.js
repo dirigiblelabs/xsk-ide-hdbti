@@ -210,7 +210,7 @@ editorView.controller('EditorViewController', ['$scope', '$http', '$messageHub',
         if (isFileChanged && $scope.saveEnabled) {
             $scope.checkResource($scope.csvimData[$scope.activeItemId].file);
             $scope.csvimData[$scope.activeItemId].name = $scope.getFileName($scope.csvimData[$scope.activeItemId].file, false);
-            saveContents(JSON.stringify($scope.csvimData, cleanForOutput, 2));
+            parseCsvim(JSON.stringify($scope.csvimData, cleanForOutput, 2));
         }
     };
 
@@ -305,26 +305,55 @@ editorView.controller('EditorViewController', ['$scope', '$http', '$messageHub',
         return value;
     }
 
+    /**
+     * Sends hdbti file, receives csvim file
+     */
+    function parseHdbti(hdbti) {
+        let blob = new Blob([hdbti], { type: "application/hdbti" });
+        let formData = new FormData();
+        formData.append('file', blob);
+
+        $http.post(`/services/v4/parse/hdbti?location="${$scope.file}"`, formData, {
+            transformRequest: angular.identity,
+            headers: { 'Content-Type': undefined }
+        }).then(function (response) {
+            $scope.csvimData = response.data;
+            for (let i = 0; i < $scope.csvimData.length; i++) {
+                $scope.csvimData[i]["name"] = $scope.getFileName($scope.csvimData[i].file, false);
+                $scope.csvimData[i]["visible"] = true;
+            }
+            $scope.activeItemId = 0;
+            if ($scope.csvimData.length > 0) {
+                $scope.dataEmpty = false;
+            } else {
+                $scope.dataEmpty = true;
+            }
+            $scope.dataLoaded = true;
+        }, function (response) {
+            console.error(response);
+        });
+    }
+
+    /**
+     * Sends csvim in text form, receives hdbti string
+     */
+    function parseCsvim(csvim) {
+        $http.post("/services/v4/parse/csvim", csvim, {
+            headers: { 'Content-Type': 'application/json' }
+        }).then(function (response) {
+            saveContents(response.data);
+        }, function (response) {
+            console.error(response);
+        });
+    }
+
     function loadFileContents() {
         let searchParams = new URLSearchParams(window.location.search);
         $scope.file = searchParams.get('file');
         if ($scope.file) {
             $http.get('../../../../../../services/v4/ide/workspaces' + $scope.file)
                 .then(function (response) {
-                    contents = response.data;
-                    if (!contents) contents = [];
-                    $scope.csvimData = contents;
-                    for (let i = 0; i < $scope.csvimData.length; i++) {
-                        $scope.csvimData[i]["name"] = $scope.getFileName($scope.csvimData[i].file, false);
-                        $scope.csvimData[i]["visible"] = true;
-                    }
-                    $scope.activeItemId = 0;
-                    if ($scope.csvimData.length > 0) {
-                        $scope.dataEmpty = false;
-                    } else {
-                        $scope.dataEmpty = true;
-                    }
-                    $scope.dataLoaded = true;
+                    parseHdbti(response.data);
                 }, function (response) {
                     if (response.data) {
                         if ("error" in response.data) {

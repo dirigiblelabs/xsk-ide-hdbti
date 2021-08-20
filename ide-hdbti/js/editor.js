@@ -43,6 +43,9 @@ editorView.directive('allowedSymbols', () => {
                 } else {
                     element.addClass('error-input');
                 }
+                if (attrs.hasOwnProperty("id") && attrs["id"] === "filepath") {
+                    scope.$parent.fileExists = true;
+                }
                 scope.$parent.setSaveEnabled(correct);
                 return correct;
             };

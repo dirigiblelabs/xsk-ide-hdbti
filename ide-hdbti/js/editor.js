@@ -25,38 +25,69 @@ editorView.factory('$messageHub', [function () {
     };
 }]);
 
-editorView.directive('uniqueField', () => {
+editorView.directive('allowedSymbols', () => {
     return {
         restrict: 'A',
         require: 'ngModel',
+        scope: {
+            regex: '@allowedSymbols'
+        },
         link: (scope, element, attrs, controller) => {
             controller.$validators.forbiddenName = value => {
-                let unique = true;
-                if ("index" in attrs) {
-                    for (let i = 0; i < scope.csvimData[scope.activeItemId].keys.length; i++) {
-                        if (i != attrs.index) {
-                            if (value === scope.csvimData[scope.activeItemId].keys[i].column) {
-                                unique = false;
-                                break;
-                            }
-                        }
-                    }
-                } else if ("kindex" in attrs && "vindex" in attrs) {
-                    for (let i = 0; i < scope.csvimData[scope.activeItemId].keys[attrs.kindex].values.length; i++) {
-                        if (i != attrs.vindex) {
-                            if (value === scope.csvimData[scope.activeItemId].keys[attrs.kindex].values[i]) {
-                                unique = false;
-                                break;
-                            }
-                        }
-                    }
+                if (!value) {
+                    return true;
                 }
-                if (unique) {
+                let correct = RegExp(scope.regex, 'gm').test(value);
+                if (correct) {
                     element.removeClass("error-input");
                 } else {
                     element.addClass('error-input');
                 }
-                scope.setSaveEnabled(unique);
+                scope.$parent.setSaveEnabled(correct);
+                return correct;
+            };
+        }
+    };
+});
+
+editorView.directive('uniqueField', () => {
+    return {
+        restrict: 'A',
+        require: 'ngModel',
+        scope: {
+            regex: '@uniqueField'
+        },
+        link: (scope, element, attrs, controller) => {
+            controller.$validators.forbiddenName = value => {
+                let unique = true;
+                let correct = RegExp(scope.regex, 'gm').test(value);
+                if (correct) {
+                    if ("index" in attrs) {
+                        for (let i = 0; i < scope.$parent.csvimData[scope.$parent.activeItemId].keys.length; i++) {
+                            if (i != attrs.index) {
+                                if (value === scope.$parent.csvimData[scope.$parent.activeItemId].keys[i].column) {
+                                    unique = false;
+                                    break;
+                                }
+                            }
+                        }
+                    } else if ("kindex" in attrs && "vindex" in attrs) {
+                        for (let i = 0; i < scope.$parent.csvimData[scope.$parent.activeItemId].keys[attrs.kindex].values.length; i++) {
+                            if (i != attrs.vindex) {
+                                if (value === scope.$parent.$parent.csvimData[scope.$parent.activeItemId].keys[attrs.kindex].values[i]) {
+                                    unique = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (correct && unique) {
+                    element.removeClass("error-input");
+                } else {
+                    element.addClass('error-input');
+                }
+                scope.$parent.setSaveEnabled(correct);
                 return unique;
             };
         }
@@ -77,7 +108,7 @@ editorView.controller('EditorViewController', ['$scope', '$http', '$messageHub',
     $scope.dataLoaded = false;
     $scope.csvimData = [];
     $scope.activeItemId = 0;
-    $scope.delimiterList = [',', '\\t', '|', ';'];
+    $scope.delimiterList = [',', '\\t', '|', ';', '#'];
     $scope.quoteCharList = ["'", "\""];
 
     $scope.openFile = function () {
@@ -149,6 +180,14 @@ editorView.controller('EditorViewController', ['$scope', '$http', '$messageHub',
         $scope.setEditEnabled(false);
         $scope.fileExists = true;
         $scope.activeItemId = id;
+    };
+
+    $scope.isDelimiterSupported = function (delimiter) {
+        return $scope.delimiterList.includes(delimiter);
+    };
+
+    $scope.isQuoteCharSupported = function (quoteChar) {
+        return $scope.quoteCharList.includes(quoteChar);
     };
 
     $scope.delimiterChanged = function (delimiter) {
@@ -279,11 +318,13 @@ editorView.controller('EditorViewController', ['$scope', '$http', '$messageHub',
             if (xhr.status === 200) {
                 csrfToken = xhr.getResponseHeader("x-csrf-token");
                 $scope.fileExists = true;
-                return true;
+            } else {
+                $scope.fileExists = false;
             }
+        } else {
+            $scope.fileExists = false;
         }
-        $scope.fileExists = false;
-        return false;
+        return $scope.fileExists;
     };
 
     function getNumber(str) {

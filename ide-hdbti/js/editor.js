@@ -192,7 +192,11 @@ editorView.controller('EditorViewController', ['$scope', '$http', '$messageHub',
     };
 
     $scope.isSchemaInTable = function () {
-        if ($scope.csvimData[$scope.activeItemId].table && $scope.csvimData[$scope.activeItemId].table.includes("::")) return true;
+        if (
+            $scope.csvimData.length > 0 &&
+            $scope.csvimData[$scope.activeItemId].table &&
+            $scope.csvimData[$scope.activeItemId].table.includes("::")
+        ) return true;
         return false;
     };
 

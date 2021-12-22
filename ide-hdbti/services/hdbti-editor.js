@@ -11,7 +11,7 @@
  */
 exports.getEditor = function () {
 	return {
-		"id": "HDBTI Editor",
+		"id": "hdbti",
 		"name": "HDBTI Editor",
 		"factory": "frame",
 		"region": "center-top",
